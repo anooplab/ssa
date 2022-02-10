@@ -4,10 +4,10 @@ import argparse
 import math
 import numpy as np
 import csv
-import pandas as pd
+import csv as pd
 
 
-class ssa:
+class SSA:
     """
     Stochastic Simulation Algorithm Class. time and time steps are set to 0.0
     and 0.0001 respectively. Change it according to your requirement.
@@ -16,10 +16,10 @@ class ssa:
     t = 0.0
     dt = 0.0001
 
-    def __init__(self, population, k, stotio_mat, steps, species):
+    def __init__(self, population, k, stoichiometry_matrix, steps, species):
         self.population = population
         self.k = k
-        self.stotio_mat = stotio_mat
+        self.stoichiometry_matrix = stoichiometry_matrix
         self.steps = steps
         self.species = species
 
@@ -27,47 +27,45 @@ class ssa:
         reactant_index = []
         reactant_stoichiometry = []
         for j in range(len(self.population)):
-            if self.stotio_mat[rxn_id][j] < 0:
+            if self.stoichiometry_matrix[rxn_id][j] < 0:
                 reactant_index.append(j)
-                reactant_stoichiometry.append(self.stotio_mat[rxn_id][j])
+                reactant_stoichiometry.append(self.stoichiometry_matrix[rxn_id][j])
         order = -sum(reactant_stoichiometry)
         if order == 1:
-            propen = self.k[rxn_id] * self.population[reactant_index[0]] * self.dt
+            return self.k[rxn_id] * self.population[reactant_index[0]] * self.dt
         elif order == 2 and len(reactant_index) == 1:
-            propen = (
-                0.5
-                * self.k[rxn_id]
-                * self.population[reactant_index[0]]
-                * (self.population[reactant_index[0]] - 1)
-                * self.dt
+            return (
+                    0.5
+                    * self.k[rxn_id]
+                    * self.population[reactant_index[0]]
+                    * (self.population[reactant_index[0]] - 1)
+                    * self.dt
             )
         elif order == 2 and len(reactant_index) == 2:
-            propen = (
-                self.k[rxn_id]
-                * self.population[reactant_index[0]]
-                * self.population[reactant_index[1]]
-                * self.dt
+            return (
+                    self.k[rxn_id]
+                    * self.population[reactant_index[0]]
+                    * self.population[reactant_index[1]]
+                    * self.dt
             )
         elif order == 3 and len(reactant_index) == 2:
-            propen = (
-                0.5
-                * 0.5
-                * self.k[rxn_id]
-                * self.population[reactant_index[0]]
-                * self.population[reactant_index[1]]
-                * self.population[reactant_index[1]]
-                * self.dt
+            return (
+                    0.5
+                    * 0.5
+                    * self.k[rxn_id]
+                    * self.population[reactant_index[0]]
+                    * self.population[reactant_index[1]]
+                    * self.population[reactant_index[1]]
+                    * self.dt
             )
         else:
             print(f"Propensity of the reaction {rxn_id} is unknown")
-            propen = None
-        return propen
+            return None
 
-    def Gillespie(self):
+    def gillespie(self):
         header_line = ["time", *self.species]
         data_file = []
-        for _ in range(0, self.steps):
-            tmp_lst = []
+        for _ in range(self.steps):
             a = [self.propensity(j) for j in range(len(self.k))]
             a0 = sum(a)
             if a0 == 0:
@@ -80,18 +78,16 @@ class ssa:
             if tau < 0:
                 raise ValueError("tau can not be zero")
             s = 0
-            for l in range(len(self.stotio_mat)):
-                s = s + a[l]
+            for l in range(len(self.stoichiometry_matrix)):
+                s += a[l]
                 if s > r2 * a0:
                     j = l
                     break
             self.t = self.t + tau
-            self.population = self.population + self.stotio_mat[j]
-            pop_new = self.population
-            tmp_lst.append(str(self.t))
+            self.population = self.population + self.stoichiometry_matrix[j]
+            tmp_lst = [str(self.t)]
             for length in range(len(self.population)):
-                if self.population[length] <= 0:
-                    self.population[length] = 0
+                self.population[length] = max(self.population[length], 0)
                 tmp_lst.append(str(self.population[length]))
             data_file.append(tmp_lst)
 
@@ -106,7 +102,7 @@ class ssa:
 
 def e_act_to_rate(e_act, temp):
     """
-    convert acyivation energy from kcal/mol ---> rate
+    convert activation energy from kcal/mol ---> rate
     """
     e_act_joules = e_act * 4184
     k_B = 1.3806503 * pow(10, -23)
@@ -138,7 +134,6 @@ def parse_data(yml_file):
         gibbs_lst.append(i[0][0])
         state_vector.append(i[1])
 
-
     return temperature, steps, species_name, initial_population, gibbs_lst, state_vector
 
 
@@ -152,10 +147,11 @@ def plotter(csv_file):
     plt.savefig("output.jpg")
     plt.show()
 
+
 def header():
     print(''' 
 ================================================================================
-                              ____ ____    _    
+                               ____ ____    _    
                               / ___/ ___|  / \   
                               \___ \___ \ / _ \  
                                ___) |__) / ___ \ 
@@ -175,7 +171,7 @@ With contribution from:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Gillespie stochastic simelation code")
+    parser = argparse.ArgumentParser(description="Gillespie stochastic simulation code")
     parser.add_argument(
         "-f",
         "--yaml_file",
@@ -195,7 +191,7 @@ if __name__ == "__main__":
     ) = parse_data(yaml_conf)
     k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
     header()
-    print(f'{"-"*19} Starting Gillespie Stochastic Simulation {"-"*20}')
+    print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
     print(f"species names are {species_name}")
     print("Initial Population: ")
     print(initial_population)
@@ -211,13 +207,13 @@ if __name__ == "__main__":
     print(k)
     print("-" * 80)
     print(f"Number of Monte carlo steps: {steps}")
-    ssa_obj = ssa(
+    ssa_obj = SSA(
         np.array(initial_population),
         np.array(k),
         np.array(state_vector),
         steps,
         species_name,
     )
-    ssa_obj.Gillespie()
+    ssa_obj.gillespie()
     plotter("output.csv")
-    print(f'{"-"*29} Finishing Simulation {"-"*30}')
+    print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
