@@ -9,8 +9,9 @@ import csv as pd
 
 class SSA:
     """
-    Stochastic Simulation Algorithm Class. time and time steps are set to 0.0
-    and 0.0001 respectively. Change it according to your requirement.
+    Stochastic Simulation Algorithm Class. time and time steps are 
+    set to 0.0 and 0.0001 respectively. Change it according to your 
+    requirement.
     """
 
     t = 0.0
