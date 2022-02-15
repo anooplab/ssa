@@ -17,7 +17,8 @@ class SSA:
     t = 0.0
     dt = 0.0001
 
-    def __init__(self, population, rate_constant, stoichiometry_matrix, n_steps, species):
+    def __init__(self, population, rate_constant, stoichiometry_matrix, n_steps,
+                 species):
         self.population = population
         self.k = rate_constant
         self.stoichiometry_matrix = stoichiometry_matrix
@@ -221,3 +222,8 @@ if __name__ == "__main__":
     ssa_obj.gillespie()
     plotter("output.csv")
     print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
+
+# TODO: command-line argument for plotting
+# TODO: a function to convert the last state to yaml conf file from csv
+# TODO: write output periodically rather than waiting till the end.
+# TODO: a function to create a sample yaml file with a command line option
