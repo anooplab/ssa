@@ -1,5 +1,5 @@
 Temp: 373      # Set temperature in kelvin
-Steps: 5000000 # No of monte carlo steps
+Steps: 5000000 # No of monte carlo n_steps
 Initial_pop:
    A0 : 1000
    PH3: 4000 

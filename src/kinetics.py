@@ -9,7 +9,7 @@ import csv as pd
 
 class SSA:
     """
-    Stochastic Simulation Algorithm Class. time and time steps are 
+    Stochastic Simulation Algorithm Class. time and time n_steps are
     set to 0.0 and 0.0001 respectively. Change it according to your 
     requirement.
     """
@@ -17,11 +17,11 @@ class SSA:
     t = 0.0
     dt = 0.0001
 
-    def __init__(self, population, k, stoichiometry_matrix, steps, species):
+    def __init__(self, population, rate_constant, stoichiometry_matrix, n_steps, species):
         self.population = population
-        self.k = k
+        self.k = rate_constant
         self.stoichiometry_matrix = stoichiometry_matrix
-        self.steps = steps
+        self.steps = n_steps
         self.species = species
 
     def propensity(self, rxn_id):
@@ -30,7 +30,8 @@ class SSA:
         for j in range(len(self.population)):
             if self.stoichiometry_matrix[rxn_id][j] < 0:
                 reactant_index.append(j)
-                reactant_stoichiometry.append(self.stoichiometry_matrix[rxn_id][j])
+                reactant_stoichiometry.append(
+                    self.stoichiometry_matrix[rxn_id][j])
         order = -sum(reactant_stoichiometry)
         if order == 1:
             return self.k[rxn_id] * self.population[reactant_index[0]] * self.dt
@@ -106,12 +107,12 @@ def e_act_to_rate(e_act, temp):
     convert activation energy from kcal/mol ---> rate
     """
     e_act_joules = e_act * 4184
-    k_B = 1.3806503 * pow(10, -23)
-    R = 8.31446
+    k_b = 1.3806503 * pow(10, -23)
+    gas_constant = 8.31446
     h = 6.62607015 * pow(10, -34)
-    res = (-1 * e_act_joules) / (R * temp)
+    res = (-1 * e_act_joules) / (gas_constant * temp)
     res = math.exp(res)
-    res *= k_B / h
+    res *= k_b / h
     res *= temp
     return res
 
@@ -119,23 +120,24 @@ def e_act_to_rate(e_act, temp):
 def parse_data(yml_file):
     with open(yml_file, "r") as ssa_conf:
         data = yaml.safe_load(ssa_conf)
-    temperature = data.get("Temp")
-    steps = data.get("Steps")
+    the_temperature = data.get("Temp")
+    number_of_steps = data.get("Steps")
     initial_setup = data.get("Initial_pop")
     stoichiometry_matrix = data.get("Stoichiometry")
-    species_name = []
-    initial_population = []
-    gibbs_lst = []
-    state_vector = []
+    name_of_the_species = []
+    population_at_start = []
+    gibbs_energies = []
+    the_state_vector = []
     for i in initial_setup:
-        species_name.append(i)
-        initial_population.append((initial_setup[i]))
+        name_of_the_species.append(i)
+        population_at_start.append((initial_setup[i]))
 
     for i in stoichiometry_matrix:
-        gibbs_lst.append(i[0][0])
-        state_vector.append(i[1])
+        gibbs_energies.append(i[0][0])
+        the_state_vector.append(i[1])
 
-    return temperature, steps, species_name, initial_population, gibbs_lst, state_vector
+    return the_temperature, number_of_steps, name_of_the_species, \
+        population_at_start, gibbs_energies, the_state_vector
 
 
 def plotter(csv_file):
@@ -172,7 +174,8 @@ With contribution from:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Gillespie stochastic simulation code")
+    parser = argparse.ArgumentParser(description="Gillespie stochastic "
+                                                 "simulation code")
     parser.add_argument(
         "-f",
         "--yaml_file",
@@ -207,7 +210,7 @@ if __name__ == "__main__":
     print(f"Rate Constant at {temperature}K : ")
     print(k)
     print("-" * 80)
-    print(f"Number of Monte carlo steps: {steps}")
+    print(f"Number of Monte carlo n_steps: {steps}")
     ssa_obj = SSA(
         np.array(initial_population),
         np.array(k),
