@@ -4,21 +4,27 @@ import argparse
 import math
 import numpy as np
 import csv
-import csv as pd
+import pandas as pd
+import datetime
+from pprint import pprint
+import sys
 
 
 class SSA:
     """
     Stochastic Simulation Algorithm Class. time and time n_steps are
-    set to 0.0 and 0.0001 respectively. Change it according to your 
+    set to 0.0 and 0.0001 respectively. Change it according to your
     requirement.
     """
 
     t = 0.0
     dt = 0.0001
+    time_now = str(datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+    output_csv = f"output_{time_now}.csv"
 
-    def __init__(self, population, rate_constant, stoichiometry_matrix, n_steps,
-                 species):
+    def __init__(
+        self, population, rate_constant, stoichiometry_matrix, n_steps, species
+    ):
         self.population = population
         self.k = rate_constant
         self.stoichiometry_matrix = stoichiometry_matrix
@@ -31,35 +37,34 @@ class SSA:
         for j in range(len(self.population)):
             if self.stoichiometry_matrix[rxn_id][j] < 0:
                 reactant_index.append(j)
-                reactant_stoichiometry.append(
-                    self.stoichiometry_matrix[rxn_id][j])
+                reactant_stoichiometry.append(self.stoichiometry_matrix[rxn_id][j])
         order = -sum(reactant_stoichiometry)
         if order == 1:
             return self.k[rxn_id] * self.population[reactant_index[0]] * self.dt
         elif order == 2 and len(reactant_index) == 1:
             return (
-                    0.5
-                    * self.k[rxn_id]
-                    * self.population[reactant_index[0]]
-                    * (self.population[reactant_index[0]] - 1)
-                    * self.dt
+                0.5
+                * self.k[rxn_id]
+                * self.population[reactant_index[0]]
+                * (self.population[reactant_index[0]] - 1)
+                * self.dt
             )
         elif order == 2 and len(reactant_index) == 2:
             return (
-                    self.k[rxn_id]
-                    * self.population[reactant_index[0]]
-                    * self.population[reactant_index[1]]
-                    * self.dt
+                self.k[rxn_id]
+                * self.population[reactant_index[0]]
+                * self.population[reactant_index[1]]
+                * self.dt
             )
         elif order == 3 and len(reactant_index) == 2:
             return (
-                    0.5
-                    * 0.5
-                    * self.k[rxn_id]
-                    * self.population[reactant_index[0]]
-                    * self.population[reactant_index[1]]
-                    * self.population[reactant_index[1]]
-                    * self.dt
+                0.5
+                * 0.5
+                * self.k[rxn_id]
+                * self.population[reactant_index[0]]
+                * self.population[reactant_index[1]]
+                * self.population[reactant_index[1]]
+                * self.dt
             )
         else:
             print(f"Propensity of the reaction {rxn_id} is unknown")
@@ -94,7 +99,7 @@ class SSA:
                 tmp_lst.append(str(self.population[length]))
             data_file.append(tmp_lst)
 
-        with open("output.csv", "w") as output_file:
+        with open(self.output_csv, "w") as output_file:
             writer = csv.writer(output_file)
             writer.writerow(header_line)
             for i in data_file:
@@ -137,8 +142,14 @@ def parse_data(yml_file):
         gibbs_energies.append(i[0][0])
         the_state_vector.append(i[1])
 
-    return the_temperature, number_of_steps, name_of_the_species, \
-        population_at_start, gibbs_energies, the_state_vector
+    return (
+        the_temperature,
+        number_of_steps,
+        name_of_the_species,
+        population_at_start,
+        gibbs_energies,
+        the_state_vector,
+    )
 
 
 def plotter(csv_file):
@@ -148,12 +159,72 @@ def plotter(csv_file):
     plt.legend()
     plt.xlabel("Time")
     plt.ylabel("Population")
-    plt.savefig("output.jpg")
+    # plt.savefig("output.jpg")
     plt.show()
 
 
+def regenerate_yaml(yaml_file, output_csv):
+    time_now = str(datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+    restart_yaml = f"restart_conf_{time_now}.yaml"
+    with open(yaml_file, "r") as ssa_conf:
+        data = yaml.safe_load(ssa_conf)
+    keys_to_extract_from_old_csv = ["Temp", "Steps", "Stoichiometry"]
+    old_data_dict = {key: data[key] for key in keys_to_extract_from_old_csv}
+    old_run_final_population_dict = data["Initial_pop"]
+    with open(output_csv, "r") as old_csv:
+        last_line = old_csv.readlines()[-1]
+    old_final_pop_lst = [int(i) for i in last_line.strip().split(",")[1:]]
+    # species_name = [key for key in old_run_final_population_dict]
+    species_name = list(old_run_final_population_dict)
+    new_init_pop = dict(zip(species_name, old_final_pop_lst))
+    old_data_dict["Initial_pop"] = new_init_pop
+    with open(restart_yaml, "w") as new_yaml_file:
+        yaml.dump(
+            old_data_dict, new_yaml_file, default_flow_style=None, sort_keys=False
+        )
+
+
+def get_sample_yaml():
+    sample_file = """ # Sample configuration file for SSA code. Created from script
+Temp: 273  # Set temperature in kelvin
+Steps: 100000  # No of monte carlo n_steps
+Initial_pop:
+    A0: 1000
+    A1: 4000
+    A2: 0
+    A5: 0
+    A6: 0
+    A10: 0
+    A12: 0
+    A15: 0
+    A17: 0
+    A18: 0
+
+Stoichiometry:  # [[Gibbs free energy], [stoichiometry of the elementary reaction]]
+    - [[7.52], [-1, -1, 1, 0, 0, 0, 0, 0, 0, 0]]
+    - [[10.11], [1, 1, -1, 0, 0, 0, 0, 0, 0, 0]]
+    - [[5.34], [0, -1, -1, 1, 0, 0, 0, 0, 0, 0]]
+    - [[16.73], [0, 1, 1, -1, 0, 0, 0, 0, 0, 0]]
+    - [[4.82], [0, -1, -1, 0, 1, 0, 0, 0, 0, 0]]
+    - [[17.47], [0, 1, 1, 0, -1, 0, 0, 0, 0, 0]]
+    - [[17.40], [0, -1, 0, -1, 0, 1, 0, 0, 0, 0]]
+    - [[4.39], [0, 1, 0, 1, 0, -1, 0, 0, 0, 0]]
+    - [[17.49], [0, -1, 0, 0, -1, 0, 1, 0, 0, 0]]
+    - [[2.29], [0, 1, 0, 0, 1, 0, -1, 0, 0, 0]]
+    - [[11.04], [0, -1, 0, 0, 0, -1, 0, 1, 0, 0]]
+    - [[11.96], [0, 1, 0, 0, 0, 1, 0, -1, 0, 0]]
+    - [[0.27], [0, -1, 0, 0, 0, 0, -1, 0, 1, 0]]
+    - [[9.83], [0, 1, 0, 0, 0, 0, 1, 0, -1, 0]]
+    - [[7.00], [0, -1, 0, 0, 0, 0, -1, 0, 0, 1]]
+    - [[17.06], [0, 1, 0, 0, 0, 0, 1, 0, 0, -1]]
+    """
+    with open("sample_ssa_conf.yaml", "w") as sample_yaml_file:
+        sample_yaml_file.writelines(sample_file)
+
+
 def header():
-    print(''' 
+    print(
+        """ 
 ================================================================================
                                ____ ____    _    
                               / ___/ ___|  / \   
@@ -162,7 +233,7 @@ def header():
                               |____/____/_/   \_\
  
 
-               ---   Gillespie Stochastic Simulation Algorithm ---
+               --- Gillespie Stochastic Simulation Algorithm ---
                      http://www.chemistry.iitkgp.ac.in/~anoop/
                               License: GNU GPL V3
 ================================================================================
@@ -171,20 +242,47 @@ With contribution from:
     Saikat Roy
     Debankur Bhattacharyya
     Prof. Anakuthil Anoop
-''')
+"""
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Gillespie stochastic "
-                                                 "simulation code")
+    parser = argparse.ArgumentParser(description="Gillespie stochastic simulation code")
     parser.add_argument(
         "-f",
         "--yaml_file",
         type=str,
-        required=True,
+        required=False,
         help="Simulation configuration file",
     )
+
+    parser.add_argument(
+        "-p",
+        "--plot",
+        type=str,
+        required=False,
+        choices=["y", "n"],
+        default="n",
+        help="plot population after simulation. options y; yes, n; no, default no",
+    )
+    parser.add_argument(
+        "-r", "--restart", type=str, required=False, help="provide the old csv file"
+    )
+    parser.add_argument(
+        "--sample_yaml",
+        type=str,
+        required=False,
+        choices=["y", "n"],
+        default="n",
+        help="This will generate a sample configuration yaml file for this simulation, options y; yes, n; no,"
+        "default no",
+    )
     args = parser.parse_args()
+    header()
+    if args.sample_yaml == "y":
+        print("Generating a sample yaml configuration file for the simulation")
+        get_sample_yaml()
+        sys.exit()
     yaml_conf = args.yaml_file
     (
         temperature,
@@ -195,23 +293,31 @@ if __name__ == "__main__":
         state_vector,
     ) = parse_data(yaml_conf)
     k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
-    header()
     print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
-    print(f"species names are {species_name}")
+    pprint(f"species names are {species_name}")
     print("Initial Population: ")
-    print(initial_population)
+    pprint(initial_population)
     print("-" * 80)
     print("Stoichiometric Matrix: ")
-    print(state_vector)
+    pprint(state_vector)
     print("-" * 80)
     print("Gibbs Free Energy of Activations: ")
-    print(gibbs_lst)
+    pprint(gibbs_lst)
     print("-" * 80)
     print(f"Temperature is set to {temperature}K ")
     print(f"Rate Constant at {temperature}K : ")
-    print(k)
+    pprint(k)
     print("-" * 80)
     print(f"Number of Monte carlo n_steps: {steps}")
+    if args.restart:
+        print("-" * 80)
+        print("!!! ATTENTION !!!")
+        print("Generating a new yaml configuration file from the previous run")
+        print("Check carefully the restart file before running")
+        print("-" * 80)
+        regenerate_yaml(args.yaml_file, args.restart)
+        sys.exit()
+
     ssa_obj = SSA(
         np.array(initial_population),
         np.array(k),
@@ -220,10 +326,8 @@ if __name__ == "__main__":
         species_name,
     )
     ssa_obj.gillespie()
-    plotter("output.csv")
+    if args.plot == "y":
+        plotter(ssa_obj.output_csv)
     print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
 
-# TODO: command-line argument for plotting
-# TODO: a function to convert the last state to yaml conf file from csv
 # TODO: write output periodically rather than waiting till the end.
-# TODO: a function to create a sample yaml file with a command line option
