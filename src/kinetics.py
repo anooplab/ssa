@@ -73,6 +73,7 @@ class SSA:
     def gillespie(self):
         header_line = ["time", *self.species]
         data_file = []
+
         for _ in range(self.steps):
             a = [self.propensity(j) for j in range(len(self.k))]
             a0 = sum(a)
@@ -168,20 +169,22 @@ def regenerate_yaml(yaml_file, output_csv):
     restart_yaml = f"restart_conf_{time_now}.yaml"
     with open(yaml_file, "r") as ssa_conf:
         data = yaml.safe_load(ssa_conf)
-    keys_to_extract_from_old_csv = ["Temp", "Steps", "Stoichiometry"]
+    keys_to_extract_from_old_csv = ["Temp", "Steps"]
     old_data_dict = {key: data[key] for key in keys_to_extract_from_old_csv}
     old_run_final_population_dict = data["Initial_pop"]
     with open(output_csv, "r") as old_csv:
         last_line = old_csv.readlines()[-1]
     old_final_pop_lst = [int(i) for i in last_line.strip().split(",")[1:]]
-    # species_name = [key for key in old_run_final_population_dict]
     species_name = list(old_run_final_population_dict)
     new_init_pop = dict(zip(species_name, old_final_pop_lst))
     old_data_dict["Initial_pop"] = new_init_pop
     with open(restart_yaml, "w") as new_yaml_file:
         yaml.dump(
-            old_data_dict, new_yaml_file, default_flow_style=None, sort_keys=False
+            old_data_dict, new_yaml_file, default_flow_style=False, sort_keys=False
         )
+        new_yaml_file.writelines('Stoichiometry:' + '\n')
+        for i in data['Stoichiometry']:
+            new_yaml_file.writelines('  - '+str(i)+'\n')
 
 
 def get_sample_yaml():
@@ -259,11 +262,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-p",
         "--plot",
-        type=str,
         required=False,
-        choices=["y", "n"],
-        default="n",
-        help="plot population after simulation. options y; yes, n; no, default no",
+        action='store_true',
+        help="This flag will plot all the population after simulation",
     )
     parser.add_argument(
         "-r", "--restart", type=str, required=False, help="provide the old csv file"
@@ -326,7 +327,7 @@ if __name__ == "__main__":
         species_name,
     )
     ssa_obj.gillespie()
-    if args.plot == "y":
+    if args.plot:
         plotter(ssa_obj.output_csv)
     print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
 
