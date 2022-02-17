@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import yaml
 import matplotlib.pyplot as plt
 import argparse
@@ -8,6 +10,7 @@ import pandas as pd
 import datetime
 from pprint import pprint
 import sys
+import os
 
 
 class SSA:
@@ -73,8 +76,8 @@ class SSA:
     def gillespie(self):
         header_line = ["time", *self.species]
         data_file = []
-
-        for _ in range(self.steps):
+        tmp_file = open('CheckPoint.txt', 'w')
+        for _ in range(1, self.steps+1):
             a = [self.propensity(j) for j in range(len(self.k))]
             a0 = sum(a)
             if a0 == 0:
@@ -100,11 +103,31 @@ class SSA:
                 tmp_lst.append(str(self.population[length]))
             data_file.append(tmp_lst)
 
-        with open(self.output_csv, "w") as output_file:
-            writer = csv.writer(output_file)
-            writer.writerow(header_line)
-            for i in data_file:
-                writer.writerow(i)
+            ## Dumping data in each loop
+            if _%1000 == 0:
+                print(f'Dumping data to CheckPoint File after {_} steps')
+                tmp_file.writelines(str(data_file) + '\n')
+        tmp_file.close()
+
+        # ## Dumping data after simulation
+        # with open(self.output_csv, "w") as output_file:
+        #     writer = csv.writer(output_file)
+        #     writer.writerow(header_line)
+        #     for i in data_file:
+        #         writer.writerow(i)
+
+        ## Create Final CSV from tmp file
+        print('Generating the result in CSV File')
+        with open('CheckPoint.txt', 'r') as tmp:
+            lines = tmp.readlines()[-1]
+        with open(self.output_csv, 'w') as fp:
+            tmp_data = yaml.safe_load(lines)
+            wr = csv.writer(fp)
+            wr.writerow(header_line)
+            for j in tmp_data:
+                wr.writerow(j)
+        print('Removing the CheckPoint File')
+        os.remove('CheckPoint.txt')
         print("Final population is ", self.population)
         return self.population
 
@@ -259,7 +282,7 @@ For quick start:
 Run after editing conf.yaml to suit your system: 
 
     $ python kinetics.py -s -f conf.yaml
-    Output is in csv format containing time evoluation of the population.
+    Output is in csv format containing time evolution of the population.
 
 Plot the output populations:
 
@@ -290,7 +313,6 @@ Enjoy!
         action="store_true",
         help="Run Gillespie's Stochastic Simulation Algorithm"
     )
-
 
     parser.add_argument(
         "-p",
@@ -344,6 +366,7 @@ Enjoy!
             state_vector,
         ) = parse_data(yaml_conf)
         k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
+        start_time = datetime.datetime.now()
         print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
         pprint(f"species names are {species_name}")
         print("Initial Population: ")
@@ -361,7 +384,6 @@ Enjoy!
         print("-" * 80)
         print(f"Number of Monte carlo n_steps: {steps}")
 
-
         ssa_obj = SSA(
             np.array(initial_population),
             np.array(k),
@@ -370,8 +392,9 @@ Enjoy!
             species_name,
         )
         ssa_obj.gillespie()
-        print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
+        end_time = datetime.datetime.now()
+        print(f'{"-" * 29} Finished Simulation in {end_time - start_time} {"-" * 20}')
+
     if args.plot:
         plotter(args.plot)
 
-# TODO: write output periodically rather than waiting till the end.
