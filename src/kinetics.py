@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import yaml
 import matplotlib.pyplot as plt
 import argparse
@@ -33,6 +31,7 @@ class SSA:
         self.stoichiometry_matrix = stoichiometry_matrix
         self.steps = n_steps
         self.species = species
+
 
     def propensity(self, rxn_id):
         reactant_index = []
@@ -77,6 +76,7 @@ class SSA:
         header_line = ["time", *self.species]
         data_file = []
         tmp_file = open('CheckPoint.txt', 'w')
+        block = int(self.steps/10)
         for _ in range(1, self.steps+1):
             a = [self.propensity(j) for j in range(len(self.k))]
             a0 = sum(a)
@@ -104,7 +104,7 @@ class SSA:
             data_file.append(tmp_lst)
 
             ## Dumping data in each loop
-            if _%1000 == 0:
+            if _%block == 0:
                 print(f'Dumping data to CheckPoint File after {_} steps')
                 tmp_file.writelines(str(data_file) + '\n')
         tmp_file.close()
@@ -119,9 +119,11 @@ class SSA:
         ## Create Final CSV from tmp file
         print('Generating the result in CSV File')
         with open('CheckPoint.txt', 'r') as tmp:
-            lines = tmp.readlines()[-1]
+            for line in tmp:
+                pass
+            last_line = line
         with open(self.output_csv, 'w') as fp:
-            tmp_data = yaml.safe_load(lines)
+            tmp_data = yaml.safe_load(last_line)
             wr = csv.writer(fp)
             wr.writerow(header_line)
             for j in tmp_data:
