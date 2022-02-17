@@ -187,7 +187,7 @@ def regenerate_yaml(yaml_file, output_csv):
             new_yaml_file.writelines('  - '+str(i)+'\n')
 
 
-def get_sample_yaml():
+def get_sample_yaml(sample_conf_file):
     sample_file = """ # Sample configuration file for SSA code. Created from script
 Temp: 273  # Set temperature in kelvin
 Steps: 100000  # No of monte carlo n_steps
@@ -221,7 +221,7 @@ Stoichiometry:  # [[Gibbs free energy], [stoichiometry of the elementary reactio
     - [[7.00], [0, -1, 0, 0, 0, 0, -1, 0, 0, 1]]
     - [[17.06], [0, 1, 0, 0, 0, 0, 1, 0, 0, -1]]
     """
-    with open("sample_ssa_conf.yaml", "w") as sample_yaml_file:
+    with open(sample_conf_file, "w") as sample_yaml_file:
         sample_yaml_file.writelines(sample_file)
 
 
@@ -250,7 +250,32 @@ With contribution from:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Gillespie stochastic simulation code")
+
+    epilog_msg="""
+For quick start: 
+
+    $ python kinetics.py --sample_yaml conf.yaml 
+
+Run after editing conf.yaml to suit your system: 
+
+    $ python kinetics.py -s -f conf.yaml
+    Output is in csv format containing time evoluation of the population.
+
+Plot the output populations:
+
+    $ python kinetics.py -p output.csv
+
+To continue the simulation from the last point, generate a new yaml file:
+    $ python kinetics.py -r output.csv -f continue.yaml
+
+Enjoy!
+"""
+
+    parser = argparse.ArgumentParser(
+        description="Gillespie stochastic simulation code",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=epilog_msg
+    )
     parser.add_argument(
         "-f",
         "--yaml_file",
@@ -260,75 +285,93 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-s",
+        "--ssa",
+        action="store_true",
+        help="Run Gillespie's Stochastic Simulation Algorithm"
+    )
+
+
+    parser.add_argument(
         "-p",
         "--plot",
+        metavar="csv_file",
         required=False,
-        action='store_true',
-        help="This flag will plot all the population after simulation",
+        type=str,
+        help="Plot all the population after simulation from the csv file"
     )
+
     parser.add_argument(
-        "-r", "--restart", type=str, required=False, help="provide the old csv file"
+        "-r", "--restart", 
+        metavar = "csv_file",
+        type=str, required=False, help="provide the \
+            csv file from the previous run"
     )
+
     parser.add_argument(
         "--sample_yaml",
         type=str,
         required=False,
-        choices=["y", "n"],
-        default="n",
-        help="This will generate a sample configuration yaml file for this simulation, options y; yes, n; no,"
-        "default no",
+        help="This will generate a sample configuration yaml file for this simulation"
     )
+
     args = parser.parse_args()
-    header()
-    if args.sample_yaml == "y":
+    if args.sample_yaml:
         print("Generating a sample yaml configuration file for the simulation")
-        get_sample_yaml()
+        get_sample_yaml(args.sample_yaml)
         sys.exit()
-    yaml_conf = args.yaml_file
-    (
-        temperature,
-        steps,
-        species_name,
-        initial_population,
-        gibbs_lst,
-        state_vector,
-    ) = parse_data(yaml_conf)
-    k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
-    print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
-    pprint(f"species names are {species_name}")
-    print("Initial Population: ")
-    pprint(initial_population)
-    print("-" * 80)
-    print("Stoichiometric Matrix: ")
-    pprint(state_vector)
-    print("-" * 80)
-    print("Gibbs Free Energy of Activations: ")
-    pprint(gibbs_lst)
-    print("-" * 80)
-    print(f"Temperature is set to {temperature}K ")
-    print(f"Rate Constant at {temperature}K : ")
-    pprint(k)
-    print("-" * 80)
-    print(f"Number of Monte carlo n_steps: {steps}")
+
     if args.restart:
+        if not args.yaml_file:
+            sys.exit("  yaml_file of the previous run is required. Provide with -f argument")
         print("-" * 80)
         print("!!! ATTENTION !!!")
         print("Generating a new yaml configuration file from the previous run")
-        print("Check carefully the restart file before running")
+        print("Check the restart file carefully before running")
         print("-" * 80)
         regenerate_yaml(args.yaml_file, args.restart)
         sys.exit()
 
-    ssa_obj = SSA(
-        np.array(initial_population),
-        np.array(k),
-        np.array(state_vector),
-        steps,
-        species_name,
-    )
-    ssa_obj.gillespie()
+    if args.ssa:
+        header()
+        yaml_conf = args.yaml_file
+        (
+            temperature,
+            steps,
+            species_name,
+            initial_population,
+            gibbs_lst,
+            state_vector,
+        ) = parse_data(yaml_conf)
+        k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
+        print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
+        pprint(f"species names are {species_name}")
+        print("Initial Population: ")
+        pprint(initial_population)
+        print("-" * 80)
+        print("Stoichiometric Matrix: ")
+        pprint(state_vector)
+        print("-" * 80)
+        print("Gibbs Free Energy of Activations: ")
+        pprint(gibbs_lst)
+        print("-" * 80)
+        print(f"Temperature is set to {temperature}K ")
+        print(f"Rate Constant at {temperature}K : ")
+        pprint(k)
+        print("-" * 80)
+        print(f"Number of Monte carlo n_steps: {steps}")
+
+
+        ssa_obj = SSA(
+            np.array(initial_population),
+            np.array(k),
+            np.array(state_vector),
+            steps,
+            species_name,
+        )
+        ssa_obj.gillespie()
+        print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
     if args.plot:
-        plotter(ssa_obj.output_csv)
-    print(f'{"-" * 29} Finishing Simulation {"-" * 30}')
+        plotter(args.plot)
 
 # TODO: write output periodically rather than waiting till the end.
