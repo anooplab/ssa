@@ -189,6 +189,19 @@ def plotter(csv_file):
     plt.show()
 
 
+def merge_csvs(csv1, csv2):
+    time_now = str(datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+    output_csv = f"combined_{time_now}.csv"
+    df1 = pd.read_csv(csv1)
+    df2 = pd.read_csv(csv2)
+    df2['time'] = df2['time'] + df1['time'].iloc[-1]
+    frame = [df1, df2]
+    result = pd.concat(frame)
+    result.set_index('time', inplace=True)
+    result.to_csv(output_csv, index=True)
+    print(f'Merged two csv {csv1} and {csv2} to {output_csv}')
+
+
 def regenerate_yaml(yaml_file, output_csv):
     time_now = str(datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
     restart_yaml = f"restart_conf_{time_now}.yaml"
@@ -339,6 +352,11 @@ Enjoy!
         help="This will generate a sample configuration yaml file for this simulation"
     )
 
+    parser.add_argument(
+        "-m", '--merge',
+        type=str, required=False, nargs='*', help="Merge two csv file, Order Matters!!"
+    )
+
     args = parser.parse_args()
     if args.sample_yaml:
         print("Generating a sample yaml configuration file for the simulation")
@@ -355,6 +373,9 @@ Enjoy!
         print("-" * 80)
         regenerate_yaml(args.yaml_file, args.restart)
         sys.exit()
+
+    if args.merge:
+        merge_csvs(args.merge[0], args.merge[1])
 
     if args.ssa:
         header()

@@ -1,9 +1,9 @@
  # Sample configuration file for SSA code. Created from script
-Temp: 273  # Set temperature in kelvin
-Steps: 100000  # No of monte carlo n_steps
+Temp: 373  # Set temperature in kelvin
+Steps: 200000  # No of monte carlo n_steps
 Initial_pop:
-    A0: 1000
-    A1: 4000
+    A0: 2000
+    A1: 4500
     A2: 0
     A5: 0
     A6: 0
