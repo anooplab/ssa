@@ -306,6 +306,9 @@ Plot the output populations:
 To continue the simulation from the last point, generate a new yaml file:
     $ python kinetics.py -r output.csv -f continue.yaml
 
+To merge outfile from two simulations:
+    $ python kinetics.py --merge output_1.csv output_2.csv
+
 Enjoy!
 """
 
@@ -354,7 +357,8 @@ Enjoy!
 
     parser.add_argument(
         "-m", '--merge',
-        type=str, required=False, nargs='*', help="Merge two csv file, Order Matters!!"
+        metavar=('output_1.csv', 'output_2.csv'),
+        type=str, required=False, nargs=2, help="Merge two csv file, Order Matters!!"
     )
 
     args = parser.parse_args()
