@@ -176,6 +176,10 @@ def plotter(csv_file):
     plt.show()
 
 
+def analyze(csv_file):
+    df = pd.read_csv(csv_file, index_col=0, dtype=float)
+    last = df.tail(1)
+
 def merge_csvs(csv1, csv2):
     time_now = str(datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
     output_csv = f"combined_{time_now}.csv"
@@ -255,7 +259,7 @@ Stoichiometry:
 
 def header():
     print(
-        """ 
+        r""" 
 ================================================================================
                                ____ ____    _    
                               / ___/ ___|  / \   
@@ -325,6 +329,14 @@ Enjoy!
         required=False,
         type=str,
         help="Plot all the population after simulation from the csv file"
+    )
+    parser.add_argument(
+        "-a",
+        "--analyze",
+        metavar="csv_file",
+        required=False,
+        type=str,
+        help="Analyze the population from the csv file"
     )
     parser.add_argument(
         "-r", "--restart",
@@ -406,6 +418,8 @@ Enjoy!
         print(
             f'{"-" * 29} Finished Simulation in '
             f'{end_time - start_time} {"-" * 20}')
+    if args.analyze:
+        analyze(args.analyze)
     if args.plot:
         plotter(args.plot)
 
