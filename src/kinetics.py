@@ -120,7 +120,7 @@ class SSA:
         print('Removing the CheckPoint File')
         os.remove('CheckPoint.txt')
         print("Final population is ", self.population)
-        return self.population
+        return self.population, self.species
 
 
 def e_act_to_rate(e_act, temperature):
@@ -179,6 +179,17 @@ def plotter(csv_file):
 def analyze(csv_file):
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
     last = df.tail(1)
+
+
+def calculate_percentage(final_population, species_name):
+    sum_of_population = sum(final_population)
+    percent_lst = []
+    for i in final_population:
+        percent_lst.append(str(i*100/sum_of_population)+' %')
+    percent_dict = dict(zip(species_name, percent_lst))
+    print('Final Population percentage of each species')
+    pprint(percent_dict)
+
 
 def merge_csvs(csv1, csv2):
     time_now = str(datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
@@ -413,7 +424,8 @@ Enjoy!
             steps,
             species_name,
         )
-        ssa_obj.gillespie()
+        final_population, species = ssa_obj.gillespie()
+        calculate_percentage(final_population, species)
         end_time = datetime.datetime.now()
         print(
             f'{"-" * 29} Finished Simulation in '
