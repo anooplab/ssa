@@ -24,7 +24,8 @@ class SSA:
     output_csv = f"output_{time_now}.csv"
 
     def __init__(
-        self, population, rate_constant, stoichiometry_matrix, n_steps, species
+            self, population, rate_constant, stoichiometry_matrix, n_steps,
+            species
     ):
         self.population = population
         self.k = rate_constant
@@ -32,41 +33,40 @@ class SSA:
         self.steps = n_steps
         self.species = species
 
-
     def propensity(self, rxn_id):
         reactant_index = []
         reactant_stoichiometry = []
-        for j in range(len(self.population)):
-            if self.stoichiometry_matrix[rxn_id][j] < 0:
-                reactant_index.append(j)
-                reactant_stoichiometry.append(self.stoichiometry_matrix[rxn_id][j])
-        order = -sum(reactant_stoichiometry)
+        for i, stoichiometry in enumerate(self.stoichiometry_matrix[rxn_id]):
+            if stoichiometry < 0:
+                reactant_index.append(i)
+                reactant_stoichiometry.append(stoichiometry)
+        order = - sum(reactant_stoichiometry)
         if order == 1:
             return self.k[rxn_id] * self.population[reactant_index[0]] * self.dt
         elif order == 2 and len(reactant_index) == 1:
             return (
-                0.5
-                * self.k[rxn_id]
-                * self.population[reactant_index[0]]
-                * (self.population[reactant_index[0]] - 1)
-                * self.dt
+                    0.5
+                    * self.k[rxn_id]
+                    * self.population[reactant_index[0]]
+                    * (self.population[reactant_index[0]] - 1)
+                    * self.dt
             )
         elif order == 2 and len(reactant_index) == 2:
             return (
-                self.k[rxn_id]
-                * self.population[reactant_index[0]]
-                * self.population[reactant_index[1]]
-                * self.dt
+                    self.k[rxn_id]
+                    * self.population[reactant_index[0]]
+                    * self.population[reactant_index[1]]
+                    * self.dt
             )
         elif order == 3 and len(reactant_index) == 2:
             return (
-                0.5
-                * 0.5
-                * self.k[rxn_id]
-                * self.population[reactant_index[0]]
-                * self.population[reactant_index[1]]
-                * self.population[reactant_index[1]]
-                * self.dt
+                    0.5
+                    * 0.5
+                    * self.k[rxn_id]
+                    * self.population[reactant_index[0]]
+                    * self.population[reactant_index[1]]
+                    * self.population[reactant_index[1]]
+                    * self.dt
             )
         else:
             print(f"Propensity of the reaction {rxn_id} is unknown")
@@ -75,55 +75,44 @@ class SSA:
     def gillespie(self):
         header_line = ["time", *self.species]
         data_file = []
-        tmp_file = open('CheckPoint.txt', 'w')
-        block = int(self.steps/10)
-        for _ in range(1, self.steps+1):
+        block = int(self.steps / 10)
+        for step_number in range(1, self.steps + 1):
             a = [self.propensity(j) for j in range(len(self.k))]
             a0 = sum(a)
             if a0 == 0:
                 print(a)
                 print("propensity sum can not be zero")
                 break
-            r1 = np.random.random_sample()
-            r2 = np.random.random_sample()
-            tau = (1.0 / a0) * (np.log(1.0 / r1))
+            r1, r2 = np.random.random_sample(2)
+            tau = np.log(1.0 / r1) / a0
             if tau < 0:
                 raise ValueError("tau can not be zero")
             s = 0
-            for l in range(len(self.stoichiometry_matrix)):
-                s += a[l]
+            for i, _ in enumerate(self.stoichiometry_matrix):
+                s += a[i]
                 if s > r2 * a0:
-                    j = l
+                    self.population += self.stoichiometry_matrix[i]
                     break
-            self.t = self.t + tau
-            self.population = self.population + self.stoichiometry_matrix[j]
+            self.t += tau
+
             tmp_lst = [str(self.t)]
             for length in range(len(self.population)):
                 self.population[length] = max(self.population[length], 0)
                 tmp_lst.append(str(self.population[length]))
             data_file.append(tmp_lst)
 
-            ## Dumping data in each loop
-            if _%block == 0:
-                print(f'Dumping data to CheckPoint File after {_} steps')
-                tmp_file.writelines(str(data_file) + '\n')
-        tmp_file.close()
+            # Dumping data in each loop
+            if step_number % block == 0:
+                with open('CheckPoint.txt', 'w') as chk_file:
+                    print(f'Dumping data to CheckPoint File after '
+                          f'{step_number} steps')
+                    chk_file.writelines(str(data_file) + '\n')
 
-        # ## Dumping data after simulation
-        # with open(self.output_csv, "w") as output_file:
-        #     writer = csv.writer(output_file)
-        #     writer.writerow(header_line)
-        #     for i in data_file:
-        #         writer.writerow(i)
+        # Create Final CSV from tmp file
 
-        ## Create Final CSV from tmp file
-        print('Generating the result in CSV File')
-        with open('CheckPoint.txt', 'r') as tmp:
-            for line in tmp:
-                pass
-            last_line = line
         with open(self.output_csv, 'w') as fp:
-            tmp_data = yaml.safe_load(last_line)
+            tmp_data = yaml.safe_load(
+                open('CheckPoint.txt', 'r').readlines()[-1])
             wr = csv.writer(fp)
             wr.writerow(header_line)
             for j in tmp_data:
@@ -134,18 +123,16 @@ class SSA:
         return self.population
 
 
-def e_act_to_rate(e_act, temp):
+def e_act_to_rate(e_act, temperature):
     """
     convert activation energy from kcal/mol ---> rate
     """
     e_act_joules = e_act * 4184
     k_b = 1.3806503 * pow(10, -23)
     gas_constant = 8.31446
-    h = 6.62607015 * pow(10, -34)
-    res = (-1 * e_act_joules) / (gas_constant * temp)
-    res = math.exp(res)
-    res *= k_b / h
-    res *= temp
+    planks_constant = 6.62607015 * pow(10, -34)
+    res = math.exp((-e_act_joules) / (gas_constant * temperature))
+    res *= temperature * k_b / planks_constant
     return res
 
 
@@ -218,15 +205,17 @@ def regenerate_yaml(yaml_file, output_csv):
     old_data_dict["Initial_pop"] = new_init_pop
     with open(restart_yaml, "w") as new_yaml_file:
         yaml.dump(
-            old_data_dict, new_yaml_file, default_flow_style=False, sort_keys=False
+            old_data_dict, new_yaml_file, default_flow_style=False,
+            sort_keys=False
         )
         new_yaml_file.writelines('Stoichiometry:' + '\n')
         for i in data['Stoichiometry']:
-            new_yaml_file.writelines('  - '+str(i)+'\n')
+            new_yaml_file.writelines('  - ' + str(i) + '\n')
 
 
 def get_sample_yaml(sample_conf_file):
-    sample_file = """ # Sample configuration file for SSA code. Created from script
+    sample_file = """
+# Sample configuration file for SSA code. Created from script
 Temp: 273  # Set temperature in kelvin
 Steps: 100000  # No of monte carlo n_steps
 Initial_pop:
@@ -241,7 +230,8 @@ Initial_pop:
     A17: 0
     A18: 0
 
-Stoichiometry:  # [[Gibbs free energy], [stoichiometry of the elementary reaction]]
+# [[Gibbs free energy], [stoichiometry of the elementary reaction]]
+Stoichiometry:  
     - [[7.52], [-1, -1, 1, 0, 0, 0, 0, 0, 0, 0]]
     - [[10.11], [1, 1, -1, 0, 0, 0, 0, 0, 0, 0]]
     - [[5.34], [0, -1, -1, 1, 0, 0, 0, 0, 0, 0]]
@@ -271,7 +261,7 @@ def header():
                               / ___/ ___|  / \   
                               \___ \___ \ / _ \  
                                ___) |__) / ___ \ 
-                              |____/____/_/   \_\
+                              |____/____/_/   \_\ 
  
 
                --- Gillespie Stochastic Simulation Algorithm ---
@@ -282,14 +272,13 @@ def header():
 With contribution from:
     Saikat Roy
     Debankur Bhattacharyya
-    Prof. Anakuthil Anoop
+    Anakuthil Anoop
 """
     )
 
 
-if __name__ == "__main__":
-
-    epilog_msg="""
+def run_ssa():
+    epilog_msg = """
 For quick start: 
 
     $ python kinetics.py --sample_yaml conf.yaml 
@@ -311,7 +300,6 @@ To merge outfile from two simulations:
 
 Enjoy!
 """
-
     parser = argparse.ArgumentParser(
         description="Gillespie stochastic simulation code",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -324,14 +312,12 @@ Enjoy!
         required=False,
         help="Simulation configuration file",
     )
-
     parser.add_argument(
         "-s",
         "--ssa",
         action="store_true",
         help="Run Gillespie's Stochastic Simulation Algorithm"
     )
-
     parser.add_argument(
         "-p",
         "--plot",
@@ -340,36 +326,35 @@ Enjoy!
         type=str,
         help="Plot all the population after simulation from the csv file"
     )
-
     parser.add_argument(
-        "-r", "--restart", 
-        metavar = "csv_file",
+        "-r", "--restart",
+        metavar="csv_file",
         type=str, required=False, help="provide the \
             csv file from the previous run"
     )
-
     parser.add_argument(
         "--sample_yaml",
         type=str,
         required=False,
-        help="This will generate a sample configuration yaml file for this simulation"
+        help="This will generate a sample configuration yaml file for this "
+             "simulation "
     )
-
     parser.add_argument(
         "-m", '--merge',
         metavar=('output_1.csv', 'output_2.csv'),
-        type=str, required=False, nargs=2, help="Merge two csv file, Order Matters!!"
+        type=str, required=False, nargs=2,
+        help="Merge two csv file, Order Matters!!"
     )
-
     args = parser.parse_args()
     if args.sample_yaml:
         print("Generating a sample yaml configuration file for the simulation")
         get_sample_yaml(args.sample_yaml)
         sys.exit()
-
     if args.restart:
         if not args.yaml_file:
-            sys.exit("  yaml_file of the previous run is required. Provide with -f argument")
+            sys.exit(
+                "yaml_file of the previous run is required. Provide with -f "
+                "argument")
         print("-" * 80)
         print("!!! ATTENTION !!!")
         print("Generating a new yaml configuration file from the previous run")
@@ -377,10 +362,8 @@ Enjoy!
         print("-" * 80)
         regenerate_yaml(args.yaml_file, args.restart)
         sys.exit()
-
     if args.merge:
         merge_csvs(args.merge[0], args.merge[1])
-
     if args.ssa:
         header()
         yaml_conf = args.yaml_file
@@ -420,8 +403,15 @@ Enjoy!
         )
         ssa_obj.gillespie()
         end_time = datetime.datetime.now()
-        print(f'{"-" * 29} Finished Simulation in {end_time - start_time} {"-" * 20}')
-
+        print(
+            f'{"-" * 29} Finished Simulation in '
+            f'{end_time - start_time} {"-" * 20}')
     if args.plot:
         plotter(args.plot)
 
+
+if __name__ == "__main__":
+    run_ssa()
+    print("Done")
+    # x = e_act_to_rate(16, 273)
+    # print(x)
