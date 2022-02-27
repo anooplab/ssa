@@ -95,13 +95,9 @@ class SSA:
                     break
             self.t += tau
 
-#           tmp_lst = [str(self.t)]
-#           for length in range(len(self.population)):
-#               self.population[length] = max(self.population[length], 0)
-#               tmp_lst.append(str(self.population[length]))
-#           data_file.append(tmp_lst)
+            current_state = [str(self.t)] + [str(c) for c in self.population]
+            data_file.append(current_state)
 
-            tmp_lst = [str(self.t)] +  [str(c) for c in self.population]
             # Dumping data in each loop
             if step_number % block == 0:
                 with open('CheckPoint.txt', 'w') as chk_file:
@@ -182,15 +178,20 @@ def analyze(csv_file, percentage=1.5, show_percentage=True):
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
     last = df.tail(1).T
     last.columns = ['Population']
-    last['percentage'] = 100 * last / last.Population.sum()
+    last['percentage'] = round(100 * last / last.Population.sum(), 2)
     last_non_zero = last.loc[last['percentage'] > percentage]
-    pprint(last)
-    # last.plot.pie(y='Population').get_figure().savefig('output.png')
+    pprint(last_non_zero)
     if show_percentage:
-        last_non_zero.plot.pie(y='Population', figsize=(15, 10), textprops=textprops, legend=False, label="",
+        last_non_zero.plot.pie(y='Population', 
+                               figsize=(15, 10), 
+                               textprops=textprops, 
+                               legend=False, label="",
                                autopct='%1.1f%%').get_figure().savefig('output.png')
     else:
-        last_non_zero.plot.pie(y='Population', figsize=(15, 10), textprops=textprops, legend=False,
+        last_non_zero.plot.pie(y='Population', 
+                               figsize=(15, 10), 
+                               textprops=textprops, 
+                               legend=False,
                                label="").get_figure().savefig('output.png')
 
 
@@ -357,10 +358,27 @@ Enjoy!
     parser.add_argument(
         "-a",
         "--analyze",
-        metavar="csv_file, threshold_percentage, show percentage in plot",
+        metavar="csv_file",
         required=False,
         type=str,
         help="Analyze the population from the csv file"
+    )
+    parser.add_argument(
+        "--minimum-percentage",
+        metavar="minimum-percentage",
+        required=False,
+        default=1.5,
+        type=float,
+        help="Minimum percentage of population to include in plot"
+    )
+    parser.add_argument(
+        "--show-percentage",
+        metavar="show-percentage",
+        required=False,
+        choices=[True, False],
+        default=True,
+        type=bool,
+        help="Show/hide percentage in plot"
     )
     parser.add_argument(
         "-r", "--restart",
@@ -444,7 +462,10 @@ Enjoy!
             f'{"-" * 29} Finished Simulation in '
             f'{end_time - start_time} {"-" * 20}')
     if args.analyze:
-        analyze(args.analyze)
+        csv_file = args.analyze
+        percentage_threshold = args.minimum_percentage
+        toggle = args.show_percentage
+        analyze(csv_file, percentage=percentage_threshold, show_percentage=toggle)
     if args.plot:
         plotter(args.plot)
 
