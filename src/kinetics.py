@@ -176,13 +176,21 @@ def plotter(csv_file):
     plt.show()
 
 
-def analyze(csv_file):
+def analyze(csv_file, percentage=1.5, show_percentage=True):
+    textprops = {'fontsize': 15, 'fontweight': 'bold'}
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
     last = df.tail(1).T
     last.columns = ['Population']
-    last['percentage'] = 100*last/last.Population.sum()
+    last['percentage'] = 100 * last / last.Population.sum()
+    last_non_zero = last.loc[last['percentage'] > percentage]
     pprint(last)
-    last.plot.pie(y='Population').get_figure().savefig('output.png')
+    # last.plot.pie(y='Population').get_figure().savefig('output.png')
+    if show_percentage:
+        last_non_zero.plot.pie(y='Population', figsize=(15, 10), textprops=textprops, legend=False, label="",
+                               autopct='%1.1f%%').get_figure().savefig('output.png')
+    else:
+        last_non_zero.plot.pie(y='Population', figsize=(15, 10), textprops=textprops, legend=False,
+                               label="").get_figure().savefig('output.png')
 
 
 def calculate_percentage(final_population, species_name):
@@ -348,7 +356,7 @@ Enjoy!
     parser.add_argument(
         "-a",
         "--analyze",
-        metavar="csv_file",
+        metavar="csv_file, threshold_percentage, show percentage in plot",
         required=False,
         type=str,
         help="Analyze the population from the csv file"
