@@ -162,18 +162,18 @@ def parse_data(yml_file):
     )
 
 
-def plotter(csv_file):
+def plot_simulation(csv_file):
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
     for i in df.columns:
         plt.plot(df.index, df[i], label=i)
     plt.legend()
     plt.xlabel("Time")
     plt.ylabel("Population")
-    # plt.savefig("output.jpg")
     plt.show()
+    plt.savefig("simulation.jpg")
 
 
-def analyze(csv_file, percentage=1.5, show_percentage=True):
+def plot_population(csv_file, percentage, show_percentage):
     textprops = {'fontsize': 15, 'fontweight': 'bold'}
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
     last = df.tail(1).T
@@ -186,13 +186,13 @@ def analyze(csv_file, percentage=1.5, show_percentage=True):
                                figsize=(15, 10), 
                                textprops=textprops, 
                                legend=False, label="",
-                               autopct='%1.1f%%').get_figure().savefig('output.png')
+                               autopct='%1.1f%%').get_figure().savefig('population.jpg')
     else:
         last_non_zero.plot.pie(y='Population', 
                                figsize=(15, 10), 
                                textprops=textprops, 
                                legend=False,
-                               label="").get_figure().savefig('output.png')
+                               label="").get_figure().savefig('population.jpg')
 
 
 def calculate_percentage(final_population, species_name):
@@ -348,14 +348,6 @@ Enjoy!
         help="Run Gillespie's Stochastic Simulation Algorithm"
     )
     parser.add_argument(
-        "-p",
-        "--plot",
-        metavar="csv_file",
-        required=False,
-        type=str,
-        help="Plot all the population after simulation from the csv file"
-    )
-    parser.add_argument(
         "-a",
         "--analyze",
         metavar="csv_file",
@@ -371,15 +363,9 @@ Enjoy!
         type=float,
         help="Minimum percentage of population to include in plot"
     )
-    parser.add_argument(
-        "--show-percentage",
-        metavar="show-percentage",
-        required=False,
-        choices=[True, False],
-        default=True,
-        type=bool,
-        help="Show/hide percentage in plot"
-    )
+    parser.add_argument('--show-percentage', action='store_true', dest='pct')
+    parser.add_argument('--hide-percentage', action='store_false', dest='pct')
+    parser.set_defaults(pct=True)
     parser.add_argument(
         "-r", "--restart",
         metavar="csv_file",
@@ -400,6 +386,7 @@ Enjoy!
         help="Merge two csv file, Order Matters!!"
     )
     args = parser.parse_args()
+    print(args)
     if args.sample_yaml:
         print("Generating a sample yaml configuration file for the simulation")
         get_sample_yaml(args.sample_yaml)
@@ -464,10 +451,9 @@ Enjoy!
     if args.analyze:
         csv_file = args.analyze
         percentage_threshold = args.minimum_percentage
-        toggle = args.show_percentage
-        analyze(csv_file, percentage=percentage_threshold, show_percentage=toggle)
-    if args.plot:
-        plotter(args.plot)
+        toggle = args.pct
+        plot_simulation(csv_file)
+        plot_population(csv_file, percentage_threshold, toggle)
 
 
 if __name__ == "__main__":
