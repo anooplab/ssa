@@ -178,7 +178,11 @@ def plotter(csv_file):
 
 def analyze(csv_file):
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
-    last = df.tail(1)
+    last = df.tail(1).T
+    last.columns = ['Population']
+    last['percentage'] = 100*last/last.Population.sum()
+    pprint(last)
+    last.plot.pie(y='Population').get_figure().savefig('output.png')
 
 
 def calculate_percentage(final_population, species_name):
