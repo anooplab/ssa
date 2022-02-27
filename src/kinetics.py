@@ -162,14 +162,27 @@ def parse_data(yml_file):
     )
 
 
-def plot_simulation(csv_file):
+
+def plot_simulation(csv_file, percentage):
+    plt.rcParams["figure.figsize"] = (15, 10)
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
-    for i in df.columns:
-        plt.plot(df.index, df[i], label=i)
+    last = df.tail(1).T
+    last.columns = ['Population']
+    last['percentage'] = round(100 * last / last.Population.sum(), 2)
+    last_non_zero = last.loc[last['percentage'] > percentage]
+    total_non_zero_df2 = df[last_non_zero.index]
+    if percentage:
+        for i in total_non_zero_df2.columns:
+            plt.plot(df.index, df[i], linewidth=1.5, label=i)
+    else:
+        for i in df.columns:
+            plt.plot(df.index, df[i], linewidth=1.5, label=i)
     plt.legend()
     plt.xlabel("Time")
     plt.ylabel("Population")
     plt.savefig("simulation.jpg")
+
+
 
 
 def plot_population(csv_file, percentage, show_percentage):
@@ -450,7 +463,7 @@ Enjoy!
         csv_file = args.analyze
         percentage_threshold = args.minimum_percentage
         toggle = args.pct
-        plot_simulation(csv_file)
+        plot_simulation(csv_file, percentage_threshold)
         plot_population(csv_file, percentage_threshold, toggle)
 
 
