@@ -95,12 +95,13 @@ class SSA:
                     break
             self.t += tau
 
-            tmp_lst = [str(self.t)]
-            for length in range(len(self.population)):
-                self.population[length] = max(self.population[length], 0)
-                tmp_lst.append(str(self.population[length]))
-            data_file.append(tmp_lst)
+#           tmp_lst = [str(self.t)]
+#           for length in range(len(self.population)):
+#               self.population[length] = max(self.population[length], 0)
+#               tmp_lst.append(str(self.population[length]))
+#           data_file.append(tmp_lst)
 
+            tmp_lst = [str(self.t)] +  [str(c) for c in self.population]
             # Dumping data in each loop
             if step_number % block == 0:
                 with open('CheckPoint.txt', 'w') as chk_file:
