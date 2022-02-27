@@ -169,7 +169,6 @@ def plot_simulation(csv_file):
     plt.legend()
     plt.xlabel("Time")
     plt.ylabel("Population")
-    plt.show()
     plt.savefig("simulation.jpg")
 
 
@@ -386,7 +385,6 @@ Enjoy!
         help="Merge two csv file, Order Matters!!"
     )
     args = parser.parse_args()
-    print(args)
     if args.sample_yaml:
         print("Generating a sample yaml configuration file for the simulation")
         get_sample_yaml(args.sample_yaml)
