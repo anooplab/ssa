@@ -12,15 +12,6 @@ import sys
 import os
 
 
-def pickle_to_csv(pkl_file, csv_file):
-    with open(pkl_file, 'rb') as f:
-        tmp_data = pickle.load(f)
-        with open(csv_file, 'w') as fp:
-            wr = csv.writer(fp)
-            for j in tmp_data:
-                wr.writerow(j)
-
-
 class SSA:
     """
     Stochastic Simulation Algorithm Class. time and time n_steps are
@@ -44,13 +35,15 @@ class SSA:
         self.species = species
 
     def propensity(self, rxn_id):
-        reactant_index = []
-        reactant_stoichiometry = []
-        for i, stoichiometry in enumerate(self.stoichiometry_matrix[rxn_id]):
-            if stoichiometry < 0:
-                reactant_index.append(i)
-                reactant_stoichiometry.append(stoichiometry)
-        order = - sum(reactant_stoichiometry)
+
+        order = self.find_order(rxn_id)
+
+        reactant_index = [
+            i
+            for i, stoichiometry in enumerate(self.stoichiometry_matrix[rxn_id])
+            if stoichiometry < 0
+        ]
+
         if order == 1:
             return self.k[rxn_id] * self.population[reactant_index[0]] * self.dt
         elif order == 2 and len(reactant_index) == 1:
@@ -70,8 +63,7 @@ class SSA:
             )
         elif order == 3 and len(reactant_index) == 2:
             return (
-                    0.5
-                    * 0.5
+                    0.5 ** 2
                     * self.k[rxn_id]
                     * self.population[reactant_index[0]]
                     * self.population[reactant_index[1]]
@@ -82,22 +74,28 @@ class SSA:
             print(f"Propensity of the reaction {rxn_id} is unknown")
             return None
 
+    def find_order(self, rxn_id):
+        reactant_stoichiometry = [
+            stoichiometry
+            for stoichiometry in self.stoichiometry_matrix[rxn_id]
+            if stoichiometry < 0
+        ]
+        return - sum(reactant_stoichiometry)
+
     def gillespie(self):
         header_line = ["time", *self.species]
-        # data_file = []
         data_file = [header_line]
         block = int(self.steps / 10)
         for step_number in range(1, self.steps + 1):
             a = [self.propensity(j) for j in range(len(self.k))]
             a0 = sum(a)
             if a0 == 0:
-                print(a)
-                print("propensity sum can not be zero")
+                print("Sum of propensity  cannot be zero")
                 break
             r1, r2 = np.random.random_sample(2)
             tau = np.log(1.0 / r1) / a0
             if tau < 0:
-                raise ValueError("tau can not be zero")
+                raise ValueError("tau cannot be negative")
             s = 0
             for i, _ in enumerate(self.stoichiometry_matrix):
                 s += a[i]
@@ -113,10 +111,6 @@ class SSA:
             if step_number % block == 0:
                 with open('./chk.pkl', 'wb') as f:
                     pickle.dump(data_file, f)
-                # with open('CheckPoint.txt', 'w') as chk_file:
-                #     print(f'Dumping data to CheckPoint File after '
-                #           f'{step_number} steps')
-                #     chk_file.writelines(str(data_file) + '\n')
 
         # Create Final CSV from tmp file
         pkl_file = './chk.pkl'
@@ -124,6 +118,15 @@ class SSA:
         pickle_to_csv(pkl_file, csv_file)
 
         return self.population, self.species
+
+
+def pickle_to_csv(pkl_file, csv_file):
+    with open(pkl_file, 'rb') as f:
+        tmp_data = pickle.load(f)
+        with open(csv_file, 'w') as fp:
+            wr = csv.writer(fp)
+            for j in tmp_data:
+                wr.writerow(j)
 
 
 def e_act_to_rate(e_act, temperature):
@@ -322,6 +325,79 @@ With contribution from:
 
 
 def run_ssa():
+    args = process_arguments()
+    if args.sample_yaml:
+        print("Generating a sample yaml configuration file for the simulation")
+        get_sample_yaml(args.sample_yaml)
+        sys.exit()
+    if args.restart:
+        if not args.yaml_file:
+            sys.exit(
+                "yaml_file of the previous run is required. Provide with -f "
+                "argument")
+        print("-" * 80)
+        print("!!! ATTENTION !!!")
+        print("Generating a new yaml configuration file from the previous run")
+        print("Check the restart file carefully before running")
+        print("-" * 80)
+        regenerate_yaml(args.yaml_file, args.restart)
+        sys.exit()
+    if args.merge:
+        merge_csvs(args.merge[0], args.merge[1])
+    if args.pickle_to_csv:
+        pickle_to_csv(args.pickle_to_csv[0], args.pickle_to_csv[1])
+    if args.ssa:
+        header()
+        yaml_conf = args.yaml_file
+        (
+            temperature,
+            steps,
+            species_name,
+            initial_population,
+            gibbs_lst,
+            state_vector,
+        ) = parse_data(yaml_conf)
+        k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
+        start_time = datetime.datetime.now()
+        print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
+        pprint(f"species names are {species_name}")
+        print("Initial Population: ")
+        pprint(initial_population)
+        print("-" * 80)
+        print("Stoichiometric Matrix: ")
+        pprint(state_vector)
+        print("-" * 80)
+        print("Gibbs Free Energy of Activations: ")
+        pprint(gibbs_lst)
+        print("-" * 80)
+        print(f"Temperature is set to {temperature}K ")
+        print(f"Rate Constant at {temperature}K : ")
+        pprint(k)
+        print("-" * 80)
+        print(f"Number of Monte carlo n_steps: {steps}")
+
+        ssa_obj = SSA(
+            np.array(initial_population),
+            np.array(k),
+            np.array(state_vector),
+            steps,
+            species_name,
+        )
+        final_population, species = ssa_obj.gillespie()
+        calculate_percentage(final_population, species)
+        end_time = datetime.datetime.now()
+        print(
+            f'{"-" * 29} Finished Simulation in '
+            f'{end_time - start_time} {"-" * 20}')
+    if args.analyze:
+        csv_file = args.analyze
+        percentage_threshold = args.minimum_percentage
+        toggle = args.pct
+        plot_simulation(csv_file, percentage_threshold)
+        plot_population(csv_file, percentage_threshold, toggle)
+
+
+def process_arguments():
     epilog_msg = """
 For quick start: 
 
@@ -412,76 +488,7 @@ Enjoy!
         type=str, required=False, nargs=2,
         help="Convert checkpoint pickle file to csv formatted file"
     )
-    args = parser.parse_args()
-    if args.sample_yaml:
-        print("Generating a sample yaml configuration file for the simulation")
-        get_sample_yaml(args.sample_yaml)
-        sys.exit()
-    if args.restart:
-        if not args.yaml_file:
-            sys.exit(
-                "yaml_file of the previous run is required. Provide with -f "
-                "argument")
-        print("-" * 80)
-        print("!!! ATTENTION !!!")
-        print("Generating a new yaml configuration file from the previous run")
-        print("Check the restart file carefully before running")
-        print("-" * 80)
-        regenerate_yaml(args.yaml_file, args.restart)
-        sys.exit()
-    if args.merge:
-        merge_csvs(args.merge[0], args.merge[1])
-    if args.pickle_to_csv:
-        pickle_to_csv(args.pickle_to_csv[0], args.pickle_to_csv[1])
-    if args.ssa:
-        header()
-        yaml_conf = args.yaml_file
-        (
-            temperature,
-            steps,
-            species_name,
-            initial_population,
-            gibbs_lst,
-            state_vector,
-        ) = parse_data(yaml_conf)
-        k = [e_act_to_rate(i, temperature) for i in gibbs_lst]
-        start_time = datetime.datetime.now()
-        print(f'{"-" * 19} Starting Gillespie Stochastic Simulation {"-" * 20}')
-        pprint(f"species names are {species_name}")
-        print("Initial Population: ")
-        pprint(initial_population)
-        print("-" * 80)
-        print("Stoichiometric Matrix: ")
-        pprint(state_vector)
-        print("-" * 80)
-        print("Gibbs Free Energy of Activations: ")
-        pprint(gibbs_lst)
-        print("-" * 80)
-        print(f"Temperature is set to {temperature}K ")
-        print(f"Rate Constant at {temperature}K : ")
-        pprint(k)
-        print("-" * 80)
-        print(f"Number of Monte carlo n_steps: {steps}")
-
-        ssa_obj = SSA(
-            np.array(initial_population),
-            np.array(k),
-            np.array(state_vector),
-            steps,
-            species_name,
-        )
-        final_population, species = ssa_obj.gillespie()
-        calculate_percentage(final_population, species)
-        end_time = datetime.datetime.now()
-        print(
-            f'{"-" * 29} Finished Simulation in '
-            f'{end_time - start_time} {"-" * 20}')
-    if args.analyze:
-        csv_file = args.analyze
-        percentage_threshold = args.minimum_percentage
-        toggle = args.pct
-        plot_simulation(csv_file, percentage_threshold)
-        plot_population(csv_file, percentage_threshold, toggle)
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
