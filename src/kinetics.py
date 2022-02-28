@@ -12,6 +12,15 @@ import sys
 import os
 
 
+def pickle_to_csv(pkl_file, csv_file):
+    with open(pkl_file, 'rb') as f:
+        tmp_data = pickle.load(f)
+        with open(csv_file, 'w') as fp:
+            wr = csv.writer(fp)
+            for j in tmp_data:
+                wr.writerow(j)
+
+
 class SSA:
     """
     Stochastic Simulation Algorithm Class. time and time n_steps are
@@ -75,7 +84,8 @@ class SSA:
 
     def gillespie(self):
         header_line = ["time", *self.species]
-        data_file = []
+        # data_file = []
+        data_file = [header_line]
         block = int(self.steps / 10)
         for step_number in range(1, self.steps + 1):
             a = [self.propensity(j) for j in range(len(self.k))]
@@ -109,23 +119,10 @@ class SSA:
                 #     chk_file.writelines(str(data_file) + '\n')
 
         # Create Final CSV from tmp file
-        with open('./chk.pkl', 'rb') as f:
-            tmp_data = pickle.load(f)
-            with open(self.output_csv, 'w') as fp:
-                wr = csv.writer(fp)
-                wr.writerow(header_line)
-                for j in tmp_data:
-                    wr.writerow(j)
-        # with open(self.output_csv, 'w') as fp:
-        #     tmp_data = yaml.safe_load(
-        #         open('CheckPoint.txt', 'r').readlines()[-1])
-        #     wr = csv.writer(fp)
-        #     wr.writerow(header_line)
-        #     for j in tmp_data:
-        #         wr.writerow(j)
-        # print('Removing the CheckPoint File')
-        # os.remove('CheckPoint.txt')
-        print("Final population is ", self.population)
+        pkl_file = './chk.pkl'
+        csv_file = self.output_csv
+        pickle_to_csv(pkl_file, csv_file)
+
         return self.population, self.species
 
 
@@ -215,10 +212,12 @@ def plot_population(csv_file, percentage, show_percentage):
 
 def calculate_percentage(final_population, species_name):
     sum_of_population = sum(final_population)
-    percent_lst = [str(i*100/sum_of_population)+' %' for i in final_population]
-    percent_dict = dict(zip(species_name, percent_lst))
-    print('Final Population percentage of each species')
-    pprint(percent_dict)
+    print('-------------------------------------')
+    print('Species     : Population (percentage)')
+    print('-------------------------------------')
+    for s, p in zip(species_name, final_population):
+        print(f'{s:12s}: {p:12d} ({100*p/sum_of_population:6.2f} %)')
+    print('-------------------------------------')
 
 
 def merge_csvs(csv1, csv2):
@@ -401,6 +400,12 @@ Enjoy!
         type=str, required=False, nargs=2,
         help="Merge two csv file, Order Matters!!"
     )
+    parser.add_argument(
+        '--pickle-to-csv',
+        metavar=('chk.pkl', 'output_file.csv'),
+        type=str, required=False, nargs=2,
+        help="Convert checkpoint pickle file to csv formatted file"
+    )
     args = parser.parse_args()
     if args.sample_yaml:
         print("Generating a sample yaml configuration file for the simulation")
@@ -420,6 +425,8 @@ Enjoy!
         sys.exit()
     if args.merge:
         merge_csvs(args.merge[0], args.merge[1])
+    if args.pickle_to_csv:
+        pickle_to_csv(args.pickle_to_csv[0], args.pickle_to_csv[1])
     if args.ssa:
         header()
         yaml_conf = args.yaml_file
@@ -473,6 +480,5 @@ Enjoy!
 
 if __name__ == "__main__":
     run_ssa()
-    print("Done")
     # x = e_act_to_rate(16, 273)
     # print(x)
