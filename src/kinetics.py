@@ -332,14 +332,20 @@ Run after editing conf.yaml to suit your system:
     $ python kinetics.py -s -f conf.yaml
     Output is in csv format containing time evolution of the population.
 
-Plot the output populations:
+Analyze the result from the csv file. It will also plot the simulation and a pie chart:
 
-    $ python kinetics.py -p output.csv
+    $ python kinetics.py -a output.csv
+    
+Also Minimum percentage of population to include in plot/pie chart: 
+
+    $ python kinetics.py -a output.csv --minimum-percentage <percentage value>
 
 To continue the simulation from the last point, generate a new yaml file:
+
     $ python kinetics.py -r output.csv -f continue.yaml
 
 To merge outfile from two simulations:
+
     $ python kinetics.py --merge output_1.csv output_2.csv
 
 Enjoy!
