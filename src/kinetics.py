@@ -6,6 +6,7 @@ import numpy as np
 import csv
 import pandas as pd
 import datetime
+import pickle
 from pprint import pprint
 import sys
 import os
@@ -100,22 +101,30 @@ class SSA:
 
             # Dumping data in each loop
             if step_number % block == 0:
-                with open('CheckPoint.txt', 'w') as chk_file:
-                    print(f'Dumping data to CheckPoint File after '
-                          f'{step_number} steps')
-                    chk_file.writelines(str(data_file) + '\n')
+                with open('./chk.pkl', 'wb') as f:
+                    pickle.dump(data_file, f)
+                # with open('CheckPoint.txt', 'w') as chk_file:
+                #     print(f'Dumping data to CheckPoint File after '
+                #           f'{step_number} steps')
+                #     chk_file.writelines(str(data_file) + '\n')
 
         # Create Final CSV from tmp file
-
-        with open(self.output_csv, 'w') as fp:
-            tmp_data = yaml.safe_load(
-                open('CheckPoint.txt', 'r').readlines()[-1])
-            wr = csv.writer(fp)
-            wr.writerow(header_line)
-            for j in tmp_data:
-                wr.writerow(j)
-        print('Removing the CheckPoint File')
-        os.remove('CheckPoint.txt')
+        with open('./chk.pkl', 'rb') as f:
+            tmp_data = pickle.load(f)
+            with open(self.output_csv, 'w') as fp:
+                wr = csv.writer(fp)
+                wr.writerow(header_line)
+                for j in tmp_data:
+                    wr.writerow(j)
+        # with open(self.output_csv, 'w') as fp:
+        #     tmp_data = yaml.safe_load(
+        #         open('CheckPoint.txt', 'r').readlines()[-1])
+        #     wr = csv.writer(fp)
+        #     wr.writerow(header_line)
+        #     for j in tmp_data:
+        #         wr.writerow(j)
+        # print('Removing the CheckPoint File')
+        # os.remove('CheckPoint.txt')
         print("Final population is ", self.population)
         return self.population, self.species
 
@@ -162,7 +171,6 @@ def parse_data(yml_file):
     )
 
 
-
 def plot_simulation(csv_file, percentage):
     plt.rcParams["figure.figsize"] = (15, 10)
     df = pd.read_csv(csv_file, index_col=0, dtype=float)
@@ -181,8 +189,6 @@ def plot_simulation(csv_file, percentage):
     plt.xlabel("Time")
     plt.ylabel("Population")
     plt.savefig("simulation.jpg")
-
-
 
 
 def plot_population(csv_file, percentage, show_percentage):
@@ -209,9 +215,7 @@ def plot_population(csv_file, percentage, show_percentage):
 
 def calculate_percentage(final_population, species_name):
     sum_of_population = sum(final_population)
-    percent_lst = []
-    for i in final_population:
-        percent_lst.append(str(i*100/sum_of_population)+' %')
+    percent_lst = [str(i*100/sum_of_population)+' %' for i in final_population]
     percent_dict = dict(zip(species_name, percent_lst))
     print('Final Population percentage of each species')
     pprint(percent_dict)
