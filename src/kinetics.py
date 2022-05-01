@@ -111,7 +111,7 @@ class SSA:
             if step_number % block == 0:
                 with open('./chk.pkl', 'wb') as f:
                     pickle.dump(data_file, f)
-
+0
         # Create Final CSV from tmp file
         pkl_file = './chk.pkl'
         csv_file = self.output_csv
