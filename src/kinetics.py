@@ -9,7 +9,6 @@ import datetime
 import pickle
 from pprint import pprint
 import sys
-import os
 
 
 class SSA:
@@ -493,5 +492,3 @@ Enjoy!
 
 if __name__ == "__main__":
     run_ssa()
-    # x = e_act_to_rate(16, 273)
-    # print(x)
